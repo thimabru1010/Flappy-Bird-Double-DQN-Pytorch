@@ -13,15 +13,17 @@ class FlappyBird(object):
         self.record_every_episode = record_every_episode
         self.env = gym.make('FlappyBird-v0')
         self.env.seed(seed)
+        #self.env.display_screen(True)
         if record_every_episode:
-            self.env = wrappers.Monitor(self.env, 
-                directory=outdir, 
-                force=True, 
+            self.env = wrappers.Monitor(self.env,
+                directory=outdir,
+                force=True,
                 video_callable=lambda ep_id: ep_id % record_every_episode == 0)
-        
+
 
     def get_screen(self, preprocess=True):
-        screen = self.env.render(mode='rgb_array')
+        self.screen = self.env.render(mode='rgb_array')
+        screen = self.screen
         if preprocess:
             screen = self.preprocess(screen)
         return screen
@@ -57,5 +59,3 @@ class FlappyBird(object):
     @property
     def action_meaning(self):
         return ['flap', 'none']
-    
-

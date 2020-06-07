@@ -4,8 +4,10 @@ LOGGING_CYCLE = 1
 BATCH = 32
 DISCOUNT = 0.99
 LEARNING_RATE = 1e-4
-OBSERV = 50000
-CAPACITY = 50000
+# OBSERV = 50000
+# CAPACITY = 50000
+OBSERV = 500
+CAPACITY = 500
 
 
 import time
@@ -45,7 +47,7 @@ class Trainer(object):
                 self.buffer.append(states, action, reward, states_next, done)
             states = states_next
             if done:
-                break    
+                break
         return accumulated_reward, step
 
     def _fill_buffer(self, num, device='cpu'):
@@ -108,9 +110,12 @@ class Trainer(object):
                     ys.append(y)
                 ys = torch.Tensor(ys).to(device)
 
+                # Render the screen to see training
+                self.env.env.render()
+
                 # Apply gradient
                 self.optimizer.zero_grad()
-                input = torch.Tensor(_states).to(device)            
+                input = torch.Tensor(_states).to(device)
                 output = self.agent.net(input) # shape (BATCH, 2)
                 actions_one_hot = np.zeros([BATCH, 2])
                 actions_one_hot[np.arange(BATCH), _actions] = 1.0
@@ -129,14 +134,14 @@ class Trainer(object):
 
                 if done and self.total_step % LOGGING_CYCLE == 0:
                     log = '[{}, {}] alive: {}, reward: {}, F/N: {}/{}, loss: {:.4f}, epsilon: {:.4f}, time: {:.3f}'.format(
-                        episode, 
-                        self.total_step, 
-                        self.total_step - step_prev, 
-                        accumulated_reward, 
-                        n_flap, 
-                        n_none, 
-                        loss.item(), 
-                        self.agent.epsilon, 
+                        episode,
+                        self.total_step,
+                        self.total_step - step_prev,
+                        accumulated_reward,
+                        n_flap,
+                        n_none,
+                        loss.item(),
+                        self.agent.epsilon,
                         time.time() - start)
                     print(log)
 
@@ -179,18 +184,10 @@ class Trainer(object):
             for _k, _v in self.agent.target.state_dict().items():
                 if k == _k:
                     tar_new[k] = v
-        
+
         self.agent.net.load_state_dict(net_new)
         self.agent.target.load_state_dict(tar_new)
         ## -----------------------------------------------
-        
+
         self.optimizer.load_state_dict(ckpt['optimizer'])
         self.total_step = ckpt['total_step']
-
-
-
-
-
-
-
-
