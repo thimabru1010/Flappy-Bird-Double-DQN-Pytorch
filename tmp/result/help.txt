@@ -1,1 +1,0 @@
-During training, it will store result video here.
