@@ -19,6 +19,7 @@ if __name__ == '__main__':
     use_gpu = (args.cuda == 'Y')
     device = torch.device('cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
     if args.clipped == True:
+        print('Using Clipped DDQN')
         agent_clipped = Agent_Clipped(cuda=torch.cuda.is_available() if use_gpu else 'cpu')
         if args.mode == 'train':
             env = FlappyBird(record_every_episode=100, outdir='tmp/result/')

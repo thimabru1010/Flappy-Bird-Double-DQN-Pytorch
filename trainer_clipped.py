@@ -6,8 +6,10 @@ DISCOUNT = 0.99
 LEARNING_RATE = 1e-4
 # OBSERV = 50000
 # CAPACITY = 50000
-OBSERV = 500
-CAPACITY = 500
+OBSERV = 25000
+CAPACITY = 25000
+# OBSERV = 500
+# CAPACITY = 500
 
 
 import time
@@ -25,7 +27,8 @@ class Trainer_Clipped(object):
         self.agent = agent
         self.env = env
         self.seed = random.randint(0, 20180818)
-        self.optimizer = optim.Adam(agent.parameters, lr=LEARNING_RATE)
+        self.optimizer1 = optim.Adam(agent.parameters1, lr=LEARNING_RATE)
+        self.optimizer2 = optim.Adam(agent.parameters2, lr=LEARNING_RATE)
         self.buffer = ReplayBuffer(capacity=CAPACITY)
         self.total_step = 0
 
@@ -38,7 +41,7 @@ class Trainer_Clipped(object):
         step = 0
         accumulated_reward = 0
         while True:
-            action = self.agent.make_action(torch.Tensor([states]).to(device), explore=explore)
+            action = self.agent.make_action1(torch.Tensor([states]).to(device), explore=explore)
             state_next, reward, done = self.env.step(action)
             states_next = np.concatenate([states[1:, :, :], [state_next]], axis=0)
             step += 1
@@ -77,7 +80,7 @@ class Trainer_Clipped(object):
                 #### --------------------
                 #### Add a new transition
                 # Calculates actions based on Q values
-                action = self.agent.make_action(torch.Tensor([states]).to(device), explore=True)
+                action = self.agent.make_action1(torch.Tensor([states]).to(device), explore=True)
 
                 state_next, reward, done = self.env.step(action)
 
@@ -107,28 +110,61 @@ class Trainer_Clipped(object):
                         y = r
                     else:
                         # Double DQN
+                        # Nessa parte usamos a e_greedy para tomar a ação, ou sempre nos baseamos no argmax da propria rede?
                         s_t_next = torch.Tensor([_states_next[i]]).to(device)
-                        # Calculates de action with one network self.net
-                        online_act = self.agent.make_action(s_t_next)
+                        # Calculates de action with self.net1
+                        online_act1 = self.agent.make_action1(s_t_next)
+                        # Calculates de max value for online_act1
+                        max_value1 = self.agent.Q1(s_t_next, online_act1, target=True)
+                        # Calculates de action with self.net2
+                        online_act2 = self.agent.make_action2(s_t_next)
+                        # Calculates de max value for online_act2
+                        max_value2 = self.agent.Q2(s_t_next, online_act2, target=True)
+                        # Index 0 network1, Index 1 network 2
+                        max_values = []
+                        max_values.append(max_value1)
+                        max_values.append(max_value2)
+                        print(max_values)
+                        index = np.argmin(np.asarray(max_values))
                         # Calculates the total reward with the target network using the action calculated form the other network (self.net)
-                        y = r + DISCOUNT * self.agent.Q(s_t_next, online_act, target=True)
+                        y = r + DISCOUNT * max_values[index]
                     ys.append(y)
                 ys = torch.Tensor(ys).to(device)
 
                 # Render the screen to see training
-                self.env.env.render()
+                #self.env.env.render()
 
                 # Apply gradient
-                self.optimizer.zero_grad()
-                input = torch.Tensor(_states).to(device)
-                output = self.agent.net(input) # shape (BATCH, 2)
-                actions_one_hot = np.zeros([BATCH, 2])
-                actions_one_hot[np.arange(BATCH), _actions] = 1.0
-                actions_one_hot = torch.Tensor(actions_one_hot).to(device)
-                ys_hat = (output * actions_one_hot).sum(dim=1)
-                loss = F.smooth_l1_loss(ys_hat, ys)
-                loss.backward()
-                self.optimizer.step()
+                if index == 0:
+                    self.optimizer1.zero_grad()
+                    input = torch.Tensor(_states).to(device)
+
+                    # Treina o que for pior
+                    #output = self.agent.net1(input) # shape (BATCH, 2)
+                    output = self.agent.net2(input) # shape (BATCH, 2)
+
+                    actions_one_hot = np.zeros([BATCH, 2])
+                    actions_one_hot[np.arange(BATCH), _actions] = 1.0
+                    actions_one_hot = torch.Tensor(actions_one_hot).to(device)
+                    ys_hat = (output * actions_one_hot).sum(dim=1)
+                    loss = F.smooth_l1_loss(ys_hat, ys)
+                    loss.backward()
+                    self.optimizer1.step()
+                else:
+                    self.optimizer2.zero_grad()
+                    input = torch.Tensor(_states).to(device)
+
+                    # Treina o que for pior
+                    #output = self.agent.net2(input) # shape (BATCH, 2)
+                    output = self.agent.net1(input) # shape (BATCH, 2)
+
+                    actions_one_hot = np.zeros([BATCH, 2])
+                    actions_one_hot[np.arange(BATCH), _actions] = 1.0
+                    actions_one_hot = torch.Tensor(actions_one_hot).to(device)
+                    ys_hat = (output * actions_one_hot).sum(dim=1)
+                    loss = F.smooth_l1_loss(ys_hat, ys)
+                    loss.backward()
+                    self.optimizer2.step()
                 #### --------------------
 
                 # logging
@@ -138,7 +174,7 @@ class Trainer_Clipped(object):
                     n_none += 1
 
                 if done and self.total_step % LOGGING_CYCLE == 0:
-                    log = '[{}, {}] alive: {}, reward: {}, F/N: {}/{}, loss: {:.4f}, epsilon: {:.4f}, time: {:.3f}'.format(
+                    log = '[{}, {}] alive: {}, reward: {}, F/N: {}/{}, loss: {:.4f}, epsilon: {:.4f}, time: {:.3f}, network: Q{}'.format(
                         episode,
                         self.total_step,
                         self.total_step - step_prev,
@@ -147,13 +183,14 @@ class Trainer_Clipped(object):
                         n_none,
                         loss.item(),
                         self.agent.epsilon,
-                        time.time() - start)
+                        time.time() - start,
+                        index+1)
                     print(log)
 
                 self.agent.update_epsilon()
                 if self.total_step % TARGET_UPDATE_CYCLE == 0:
-                    #print('[Update target network]')
-                    self.agent.update_target()
+                    print('[Update target network]')
+                    self.agent.update_targets()
 
                 if self.total_step % SAVE_MODEL_CYCLE == 0:
                     print('[Save model]')
@@ -162,19 +199,33 @@ class Trainer_Clipped(object):
 
 
     def save(self, id):
-        filename = 'tmp/models/model_{}.pth.tar'.format(id)
+        filename = 'tmp/models1/model_{}.pth.tar'.format(id)
         dirpath = os.path.dirname(filename)
         if not os.path.exists(dirpath):
             os.mkdir(dirpath)
         checkpoint = {
-            'net': self.agent.net.state_dict(),
-            'target': self.agent.target.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
+            'net': self.agent.net1.state_dict(),
+            'target': self.agent.target1.state_dict(),
+            'optimizer': self.optimizer1.state_dict(),
+            'total_step': self.total_step
+        }
+        torch.save(checkpoint, filename)
+
+        filename = 'tmp/models2/model_{}.pth.tar'.format(id)
+        dirpath = os.path.dirname(filename)
+        if not os.path.exists(dirpath):
+            os.mkdir(dirpath)
+        checkpoint = {
+            'net': self.agent.net2.state_dict(),
+            'target': self.agent.target2.state_dict(),
+            'optimizer': self.optimizer2.state_dict(),
             'total_step': self.total_step
         }
         torch.save(checkpoint, filename)
 
     def load(self, filename, device='cpu'):
+        # FAZER AJUSTES DEPOIS PARA EVALUATE
+        # LEMBRAR DO USO DE DUAS REDES, LOGO DOIS OPTIMIZERS
         ckpt = torch.load(filename, map_location=lambda storage, loc: storage)
         ## Deal with the missing of bn.num_batches_tracked
         net_new = OrderedDict()

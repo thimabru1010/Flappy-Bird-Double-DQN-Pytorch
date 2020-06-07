@@ -1,6 +1,7 @@
-EPSILON_INIT = 0.1
+EPSILON_INIT = 0.9
 EPSILON_FINAL = 0.001
-EPSILON_DECAY = 3000000
+#EPSILON_DECAY = 3000000
+EPSILON_DECAY = 0.99
 
 import copy
 import math
@@ -22,9 +23,10 @@ class Agent_Clipped(object):
             self.target1.to(device)
             self.net2.to(device)
             self.target2.to(device)
-        self.update_target()
+        self.update_targets()
 
     def Q1(self, input, action=None, target=False, argmax=False):
+        #print('entrou Q1')
         f = self.target1 if target else self.net1
         if action:
             ret = f(input)[0][action].item()
@@ -36,6 +38,7 @@ class Agent_Clipped(object):
         return ret
 
     def Q2(self, input, action=None, target=False, argmax=False):
+        #print('entrou Q2')
         f = self.target2 if target else self.net2
         if action:
             ret = f(input)[0][action].item()
@@ -51,7 +54,8 @@ class Agent_Clipped(object):
             # make it more likely do nothing
             action = random.choice([0, 1])
         else:
-            Q = self.net1(state)
+            # Talvez seja bom tirar isso
+            #Q = self.net1(state)
             action = self.Q1(state, argmax=True)
         return action
 
@@ -60,18 +64,27 @@ class Agent_Clipped(object):
             # make it more likely do nothing
             action = random.choice([0, 1])
         else:
-            Q = self.net2(state)
+            # Talvez seja bom tirar isso
+            #Q = self.net2(state)
             action = self.Q2(state, argmax=True)
         return action
 
-    def update_target(self):
+    def update_targets(self):
         state_dict = copy.deepcopy(self.net1.state_dict())
         self.target1.load_state_dict(state_dict)
 
+        state_dict = copy.deepcopy(self.net2.state_dict())
+        self.target2.load_state_dict(state_dict)
+
     def update_epsilon(self):
         if self.epsilon > EPSILON_FINAL:
-            self.epsilon -= (EPSILON_INIT - EPSILON_FINAL) / EPSILON_DECAY
+            #self.epsilon -= (EPSILON_INIT - EPSILON_FINAL) / EPSILON_DECAY
+            self.epsilon *= EPSILON_DECAY
 
     @property
-    def parameters(self):
+    def parameters1(self):
         return self.net1.parameters()
+
+    @property
+    def parameters2(self):
+        return self.net2.parameters()
