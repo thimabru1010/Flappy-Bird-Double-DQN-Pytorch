@@ -1,13 +1,14 @@
-TARGET_UPDATE_CYCLE = 10
-SAVE_MODEL_CYCLE = 500
+TARGET_UPDATE_CYCLE = 50
+SAVE_MODEL_CYCLE = 2000
 LOGGING_CYCLE = 1
 BATCH = 32
+# Gamma
 DISCOUNT = 0.99
 LEARNING_RATE = 1e-4
-# OBSERV = 50000
-# CAPACITY = 50000
-OBSERV = 25000
-CAPACITY = 25000
+OBSERV = 50000
+CAPACITY = 50000
+# OBSERV = 25000
+# CAPACITY = 25000
 # OBSERV = 500
 # CAPACITY = 500
 
@@ -49,6 +50,9 @@ class Trainer_Clipped(object):
             if buffer:
                 self.buffer.append(states, action, reward, states_next, done)
             states = states_next
+            if explore == False:
+                # Render the screen to see training
+                self.env.env.render()
             if done:
                 break
         return accumulated_reward, step
@@ -61,6 +65,7 @@ class Trainer_Clipped(object):
         print('Filling buffer takes {:.3f} seconds'.format(time.time() - start))
 
     def train(self, device='cpu'):
+        # Sp
         self.env.change_record_every_episode(100000000)
         self._fill_buffer(OBSERV, device)
         if self.env.record_every_episode:
@@ -68,6 +73,7 @@ class Trainer_Clipped(object):
 
         episode = 0
         while 'training' != 'converge':
+        #while episode <= 500:
             self.env.reset()
             state = self.env.get_screen()
             states = np.asarray([state for _ in range(4)]) # shape (4, 84, 84)
@@ -79,7 +85,7 @@ class Trainer_Clipped(object):
             while not done:
                 #### --------------------
                 #### Add a new transition
-                # Calculates actions based on Q values
+                # Calculates actions based on e-greedy
                 action = self.agent.make_action1(torch.Tensor([states]).to(device), explore=True)
 
                 state_next, reward, done = self.env.step(action)
@@ -117,16 +123,14 @@ class Trainer_Clipped(object):
                         # Calculates de max value for online_act1
                         max_value1 = self.agent.Q1(s_t_next, online_act1, target=True)
                         # Calculates de action with self.net2
-                        online_act2 = self.agent.make_action2(s_t_next)
+                        # online_act2 = self.agent.make_action2(s_t_next)
                         # Calculates de max value for online_act2
-                        max_value2 = self.agent.Q2(s_t_next, online_act2, target=True)
+                        max_value2 = self.agent.Q2(s_t_next, online_act1, target=True)
                         # Index 0 network1, Index 1 network 2
-                        max_values = []
-                        max_values.append(max_value1)
-                        max_values.append(max_value2)
-                        print(max_values)
+                        max_values = [max_value1,max_value2]
                         index = np.argmin(np.asarray(max_values))
                         # Calculates the total reward with the target network using the action calculated form the other network (self.net)
+                        # Both network1 and network 2 shares the same target
                         y = r + DISCOUNT * max_values[index]
                     ys.append(y)
                 ys = torch.Tensor(ys).to(device)
@@ -134,37 +138,35 @@ class Trainer_Clipped(object):
                 # Render the screen to see training
                 #self.env.env.render()
 
-                # Apply gradient
-                if index == 0:
-                    self.optimizer1.zero_grad()
-                    input = torch.Tensor(_states).to(device)
+                # Apply gradient on network 1
+                #print('Traning network 1...')
+                self.optimizer1.zero_grad()
+                input = torch.Tensor(_states).to(device)
 
-                    # Treina o que for pior
-                    #output = self.agent.net1(input) # shape (BATCH, 2)
-                    output = self.agent.net2(input) # shape (BATCH, 2)
+                output1 = self.agent.net1(input) # shape (BATCH, 2)
 
-                    actions_one_hot = np.zeros([BATCH, 2])
-                    actions_one_hot[np.arange(BATCH), _actions] = 1.0
-                    actions_one_hot = torch.Tensor(actions_one_hot).to(device)
-                    ys_hat = (output * actions_one_hot).sum(dim=1)
-                    loss = F.smooth_l1_loss(ys_hat, ys)
-                    loss.backward()
-                    self.optimizer1.step()
-                else:
-                    self.optimizer2.zero_grad()
-                    input = torch.Tensor(_states).to(device)
+                actions_one_hot = np.zeros([BATCH, 2])
+                actions_one_hot[np.arange(BATCH), _actions] = 1.0
+                actions_one_hot = torch.Tensor(actions_one_hot).to(device)
+                ys_hat = (output1 * actions_one_hot).sum(dim=1)
+                loss1 = F.smooth_l1_loss(ys_hat, ys)
+                loss1.backward()
+                self.optimizer1.step()
 
-                    # Treina o que for pior
-                    #output = self.agent.net2(input) # shape (BATCH, 2)
-                    output = self.agent.net1(input) # shape (BATCH, 2)
+                # Apply gradient on network 2
+                #print('Traning network 2...')
+                self.optimizer2.zero_grad()
+                input = torch.Tensor(_states).to(device)
 
-                    actions_one_hot = np.zeros([BATCH, 2])
-                    actions_one_hot[np.arange(BATCH), _actions] = 1.0
-                    actions_one_hot = torch.Tensor(actions_one_hot).to(device)
-                    ys_hat = (output * actions_one_hot).sum(dim=1)
-                    loss = F.smooth_l1_loss(ys_hat, ys)
-                    loss.backward()
-                    self.optimizer2.step()
+                output2 = self.agent.net2(input) # shape (BATCH, 2)
+
+                actions_one_hot = np.zeros([BATCH, 2])
+                actions_one_hot[np.arange(BATCH), _actions] = 1.0
+                actions_one_hot = torch.Tensor(actions_one_hot).to(device)
+                ys_hat = (output2 * actions_one_hot).sum(dim=1)
+                loss2 = F.smooth_l1_loss(ys_hat, ys)
+                loss2.backward()
+                self.optimizer2.step()
                 #### --------------------
 
                 # logging
@@ -174,14 +176,15 @@ class Trainer_Clipped(object):
                     n_none += 1
 
                 if done and self.total_step % LOGGING_CYCLE == 0:
-                    log = '[{}, {}] alive: {}, reward: {}, F/N: {}/{}, loss: {:.4f}, epsilon: {:.4f}, time: {:.3f}, network: Q{}'.format(
+                    log = '[{}, {}] alive: {}, reward: {}, F/N: {}/{}, loss1: {:.4f}, loss2: {:.4f}, epsilon: {:.4f}, time: {:.3f}, network: Q{}'.format(
                         episode,
                         self.total_step,
                         self.total_step - step_prev,
                         accumulated_reward,
                         n_flap,
                         n_none,
-                        loss.item(),
+                        loss1.item(),
+                        loss2.item(),
                         self.agent.epsilon,
                         time.time() - start,
                         index+1)
@@ -189,7 +192,7 @@ class Trainer_Clipped(object):
 
                 self.agent.update_epsilon()
                 if self.total_step % TARGET_UPDATE_CYCLE == 0:
-                    print('[Update target network]')
+                    #print('[Update target network]')
                     self.agent.update_targets()
 
                 if self.total_step % SAVE_MODEL_CYCLE == 0:
@@ -232,18 +235,18 @@ class Trainer_Clipped(object):
         tar_new = OrderedDict()
 
         for k, v in ckpt['net'].items():
-            for _k, _v in self.agent.net.state_dict().items():
+            for _k, _v in self.agent.net1.state_dict().items():
                 if k == _k:
                     net_new[k] = v
 
         for k, v in ckpt['target'].items():
-            for _k, _v in self.agent.target.state_dict().items():
+            for _k, _v in self.agent.target1.state_dict().items():
                 if k == _k:
                     tar_new[k] = v
 
-        self.agent.net.load_state_dict(net_new)
-        self.agent.target.load_state_dict(tar_new)
+        self.agent.net1.load_state_dict(net_new)
+        self.agent.target1.load_state_dict(tar_new)
         ## -----------------------------------------------
 
-        self.optimizer.load_state_dict(ckpt['optimizer'])
+        self.optimizer1.load_state_dict(ckpt['optimizer'])
         self.total_step = ckpt['total_step']
