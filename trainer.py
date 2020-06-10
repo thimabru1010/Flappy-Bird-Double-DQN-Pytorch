@@ -64,6 +64,7 @@ class Trainer(object):
             self.env.change_record_every_episode(self.env.record_every_episode)
 
         episode = 0
+        total_rewards = []
         while 'training' != 'converge':
             self.env.reset()
             state = self.env.get_screen()
