@@ -1,5 +1,4 @@
 TARGET_UPDATE_CYCLE = 50
-SAVE_MODEL_CYCLE = 5000
 LOGGING_CYCLE = 1
 BATCH = 32
 # Gamma
@@ -7,10 +6,11 @@ DISCOUNT = 0.99
 LEARNING_RATE = 1e-4
 OBSERV = 50000
 CAPACITY = 50000
+SAVE_MODEL_CYCLE = 5000
 # TEST
 # OBSERV = 500
 # CAPACITY = 500
-#SAVE_MODEL_CYCLE = 50
+# SAVE_MODEL_CYCLE = 50
 
 
 import time
@@ -162,6 +162,8 @@ class Trainer(object):
                     self.save(id=self.total_step)
                     if len(total_accumulated_rewards) > 0:
                         self.save_graph_rewards(episode, total_accumulated_rewards)
+            # Keep the accumulated_reward for all the episodes
+            total_accumulated_rewards.append(accumulated_reward)
             episode += 1
 
     def save_graph_rewards(self, episodes, total_accumulated_rewards):

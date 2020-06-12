@@ -237,17 +237,17 @@ class Trainer_Clipped(object):
         torch.save(checkpoint, filename)
 
         # Only saves Q1
-        # filename = 'tmp/models2/model_{}.pth.tar'.format(id)
-        # dirpath = os.path.dirname(filename)
-        # if not os.path.exists(dirpath):
-        #     os.mkdir(dirpath)
-        # checkpoint = {
-        #     'net': self.agent.net2.state_dict(),
-        #     'target': self.agent.target2.state_dict(),
-        #     'optimizer': self.optimizer2.state_dict(),
-        #     'total_step': self.total_step
-        # }
-        # torch.save(checkpoint, filename)
+        filename = 'tmp/models2/model_{}.pth.tar'.format(id)
+        dirpath = os.path.dirname(filename)
+        if not os.path.exists(dirpath):
+            os.mkdir(dirpath)
+        checkpoint = {
+            'net': self.agent.net2.state_dict(),
+            'target': self.agent.target2.state_dict(),
+            'optimizer': self.optimizer2.state_dict(),
+            'total_step': self.total_step
+        }
+        torch.save(checkpoint, filename)
 
     def load(self, filename, device='cpu'):
         # FAZER AJUSTES DEPOIS PARA EVALUATE

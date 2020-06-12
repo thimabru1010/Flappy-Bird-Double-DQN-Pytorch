@@ -18,6 +18,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     use_gpu = (args.cuda == 'Y')
     device = torch.device('cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
+    print(device)
     print(args.clipped)
     if args.clipped == 'Y':
         print('Using Clipped DDQN')
