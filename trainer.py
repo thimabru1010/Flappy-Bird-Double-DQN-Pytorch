@@ -1,13 +1,16 @@
-TARGET_UPDATE_CYCLE = 10
-SAVE_MODEL_CYCLE = 500
+TARGET_UPDATE_CYCLE = 50
+SAVE_MODEL_CYCLE = 5000
 LOGGING_CYCLE = 1
 BATCH = 32
+# Gamma
 DISCOUNT = 0.99
 LEARNING_RATE = 1e-4
-# OBSERV = 50000
-# CAPACITY = 50000
-OBSERV = 500
-CAPACITY = 500
+OBSERV = 50000
+CAPACITY = 50000
+# TEST
+# OBSERV = 500
+# CAPACITY = 500
+#SAVE_MODEL_CYCLE = 50
 
 
 import time
@@ -19,6 +22,9 @@ import torch
 from torch import nn, optim
 import torch.nn.functional as F
 from replay_buffer import ReplayBuffer
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 class Trainer(object):
     def __init__(self, agent, env):
@@ -64,7 +70,7 @@ class Trainer(object):
             self.env.change_record_every_episode(self.env.record_every_episode)
 
         episode = 0
-        total_rewards = []
+        total_accumulated_rewards = []
         while 'training' != 'converge':
             self.env.reset()
             state = self.env.get_screen()
@@ -112,7 +118,7 @@ class Trainer(object):
                 ys = torch.Tensor(ys).to(device)
 
                 # Render the screen to see training
-                self.env.env.render()
+                #self.env.env.render()
 
                 # Apply gradient
                 self.optimizer.zero_grad()
@@ -154,8 +160,22 @@ class Trainer(object):
                 if self.total_step % SAVE_MODEL_CYCLE == 0:
                     print('[Save model]')
                     self.save(id=self.total_step)
+                    if len(total_accumulated_rewards) > 0:
+                        self.save_graph_rewards(episode, total_accumulated_rewards)
             episode += 1
 
+    def save_graph_rewards(self, episodes, total_accumulated_rewards):
+        #fig = plt.figure()
+        fig, ax = plt.subplots(figsize=(5, 5))
+        plt.xlabel('Episodes')
+        plt.ylabel('Total reward')
+        episodes_x = np.linspace(0, episodes, episodes)
+        ax.plot(episodes_x, np.ones(episodes)*0, color='red', label='ref')
+        ax.plot(episodes_x, total_accumulated_rewards, color='turquoise', label='real')
+        ax.legend(loc='lower left')
+        if not os.path.exists('tmp/graphs'):
+            os.makedirs('tmp/graphs')
+        plt.savefig(f'tmp/graphs/Total_rewards_ep={episodes}.png')
 
     def save(self, id):
         filename = 'tmp/models/model_{}.pth.tar'.format(id)

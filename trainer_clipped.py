@@ -1,5 +1,4 @@
 TARGET_UPDATE_CYCLE = 50
-SAVE_MODEL_CYCLE = 5000
 LOGGING_CYCLE = 1
 BATCH = 32
 # Gamma
@@ -7,10 +6,11 @@ DISCOUNT = 0.99
 LEARNING_RATE = 1e-4
 OBSERV = 50000
 CAPACITY = 50000
+SAVE_MODEL_CYCLE = 5000
 # TEST
 # OBSERV = 500
 # CAPACITY = 500
-#SAVE_MODEL_CYCLE = 50
+# SAVE_MODEL_CYCLE = 50
 
 
 import time
@@ -236,17 +236,18 @@ class Trainer_Clipped(object):
         }
         torch.save(checkpoint, filename)
 
-        filename = 'tmp/models2/model_{}.pth.tar'.format(id)
-        dirpath = os.path.dirname(filename)
-        if not os.path.exists(dirpath):
-            os.mkdir(dirpath)
-        checkpoint = {
-            'net': self.agent.net2.state_dict(),
-            'target': self.agent.target2.state_dict(),
-            'optimizer': self.optimizer2.state_dict(),
-            'total_step': self.total_step
-        }
-        torch.save(checkpoint, filename)
+        # Only saves Q1
+        # filename = 'tmp/models2/model_{}.pth.tar'.format(id)
+        # dirpath = os.path.dirname(filename)
+        # if not os.path.exists(dirpath):
+        #     os.mkdir(dirpath)
+        # checkpoint = {
+        #     'net': self.agent.net2.state_dict(),
+        #     'target': self.agent.target2.state_dict(),
+        #     'optimizer': self.optimizer2.state_dict(),
+        #     'total_step': self.total_step
+        # }
+        # torch.save(checkpoint, filename)
 
     def load(self, filename, device='cpu'):
         # FAZER AJUSTES DEPOIS PARA EVALUATE
