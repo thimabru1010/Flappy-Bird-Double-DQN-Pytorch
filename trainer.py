@@ -4,13 +4,13 @@ BATCH = 32
 # Gamma
 DISCOUNT = 0.99
 LEARNING_RATE = 1e-4
-OBSERV = 50000
-CAPACITY = 50000
-SAVE_MODEL_CYCLE = 5000
+# OBSERV = 50000
+# CAPACITY = 50000
+# SAVE_MODEL_CYCLE = 5000
 # TEST
-# OBSERV = 500
-# CAPACITY = 500
-# SAVE_MODEL_CYCLE = 50
+OBSERV = 500
+CAPACITY = 500
+SAVE_MODEL_CYCLE = 50
 
 
 import time
@@ -181,6 +181,7 @@ class Trainer(object):
         if not os.path.exists('tmp/graphs'):
             os.makedirs('tmp/graphs')
         plt.savefig(f'tmp/graphs/Total_rewards_ep={episodes}.png')
+        plt.close()
 
     def save(self, id):
         filename = 'tmp/models/model_{}.pth.tar'.format(id)

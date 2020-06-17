@@ -221,6 +221,7 @@ class Trainer_Clipped(object):
         if not os.path.exists('tmp/graphs'):
             os.makedirs('tmp/graphs')
         plt.savefig(f'tmp/graphs/Total_rewards_ep={episodes}.png')
+        plt.close()
 
 
     def save(self, id):
