@@ -1,4 +1,3 @@
-README.md
 setup.py
 ple/__init__.py
 ple/ple.py
