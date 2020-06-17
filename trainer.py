@@ -52,6 +52,9 @@ class Trainer(object):
             if buffer:
                 self.buffer.append(states, action, reward, states_next, done)
             states = states_next
+            if explore == False:
+                # Render the screen to see training
+                self.env.env.render()
             if done:
                 break
         return accumulated_reward, step

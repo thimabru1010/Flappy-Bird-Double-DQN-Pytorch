@@ -30,6 +30,7 @@ if __name__ == '__main__':
                 env = FlappyBird(record_every_episode=100, outdir='tmp/result/')
                 tr = Trainer_Clipped(agent_clipped, env)
                 if args.ckpt != 'none':
+                    print('model loaded!')
                     tr.load(args.ckpt, device)
                 tr.train(device=device)
             else:
@@ -45,6 +46,7 @@ if __name__ == '__main__':
                 env = FlappyBird(record_every_episode=100, outdir='tmp/result/')
                 tr = Trainer(agent, env)
                 if args.ckpt != 'none':
+                    print('model loaded!')
                     tr.load(args.ckpt, device)
                 tr.train(device=device)
             else:
